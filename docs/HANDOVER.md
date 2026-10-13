@@ -7,7 +7,7 @@
 | **Written** | 2026-10-13 by Claude Code session `3ace0022-f1fe-49bc-a139-9c175fb4a8f0` (run from `ploch-common`) |
 | **Start the next session in** | `~/devnet/my/mrploch/ploch-endpoints` |
 | **Source snapshot** | `mrploch/ploch-common` commit [`1f1764b`](https://github.com/mrploch/ploch-common/commit/1f1764b) |
-| **Removal from ploch-common** | Pull request linked from [PLO-775](https://linear.app/ploch/issue/PLO-775) |
+| **Removal from ploch-common** | [ploch-common PR #353](https://github.com/mrploch/ploch-common/pull/353) |
 
 This document records everything the owner asked for. Read it in full before you start. Then follow
 the workspace rules in `.claude/rules/`: Linear tracking, branch naming, commits, the PR completion
@@ -52,7 +52,7 @@ been renamed or fixed yet.
 | `src/Common.WebApi/WebApi/` | `Ploch.Common.WebApi` | General ASP.NET Core helpers: `OpenApiConfigurator`, `QueryStringBinder` (`IsPackable=false`; never published) |
 | `tests/Common.WebApi.Tests/` | `Ploch.Common.WebApi.Tests` | xUnit v3 tests for `OpenApiConfigurator` and `QueryStringBinder` |
 | `src/Common.Ardalis.Result/` | `Ploch.Common.Ardalis.Result` | A single 22-line `ResultStatus.ToHttpStatusCode()` extension, used only by the FastEndpoints project. It was **never published to nuget.org**, so it moved with the code. |
-| `docs/libraries/common-webapi.md` | — | The old documentation page from ploch-common, which describes the whole family. Use it as raw material for the new README and docs. |
+| `docs/libraries/common-webapi.md`, `docs/libraries/common-ardalis-result.md` | — | The old documentation pages from ploch-common. They describe the whole family. Use them as raw material for the new README and docs. |
 
 **Not imported, on purpose:** the `bin/`/`obj/` folders, the untracked `*.csproj.user` files, and
 ploch-common's two secondary solutions (`Ploch.Common.WebApi.Endpoints.slnx`,
@@ -119,6 +119,24 @@ repository, so **never** write `Closes #<n>` for them in a ploch-endpoints PR (s
   `IntegrationTests/Delete/DeleteEndpointHandlerTests.cs:19` asserts `ResultStatus.Ok`.
 - **The two flavours use different routes.** FastEndpoints uses `/api/{name}`; Minimal API uses
   `/{name}s`. Pluralisation is naive (`categorys`). Make the convention one configurable option.
+
+### 3.1a Security: must fix before publishing
+
+An automated security review of the import commit (2026-10-13) flagged three findings in the
+imported code. Two of them are named here:
+
+- **No authorization hooks.** `MinimalApiEndpoints/CrudEndpointsMapper.cs` maps full CRUD
+  (including update and delete) for any entity, with no way to attach `RequireAuthorization()` or
+  policies. Return the `RouteGroupBuilder` and route handler builders, or accept a configure
+  callback, so that consumers can secure the routes. Do the same for the FastEndpoints flavour
+  (`AllowAnonymous` versus policies). Document "secure by configuration" prominently in the
+  README.
+- **Unbounded resource use.** `CrudEndpoints/GetAll/GetAllIEndpointHandler.cs` accepts any
+  `PageSize`, so a client can read a whole table in one request. Add a configurable maximum.
+
+The third finding was not shown in this session. **Re-run `/security-review`**, or the
+`dotnet-security-reviewer` agent, on the imported code first thing, and file each finding in
+Linear. Also consider mass assignment: the Create and Update paths map whole DTOs onto entities.
 
 ### 3.2 Unfinished pieces
 
